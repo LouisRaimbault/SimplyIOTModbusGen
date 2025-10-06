@@ -74,6 +74,14 @@ L’inspiration provient d’une **architecture industrielle réduite** où les 
 - Les fichiers sont des CSV classiques (`,`), encodés en **UTF‑8**, et portent l’extension `.txt` par convention de sortie.  
 - Les colonnes et le format exact (noms de colonnes, ordre) suivent la table **Variables générées** présente dans ce README.
 
+
+### 📝 TODO / Améliorations à venir
+
+- Implémenter et intégrer les **logiques d’établissement de connexion TCP** (handshake) pour tous les protocoles utilisant TCP.  
+- Améliorer la **taille des paquets**, en particulier pour les charges utiles, afin de mieux refléter les caractéristiques réelles des systèmes industriels.  
+- Ajouter **d’autres protocoles** fréquemment utilisés dans les systèmes industriels fermés.  
+- Introduire de **nouvelles anomalies** pour enrichir les scénarios de test et la diversité des comportements anormaux.
+
 ---
 
 ### ⚠️ Familles d’anomalies
@@ -187,12 +195,73 @@ Chaque **symbole** représente l’**unicité d’un n-uplet** présent dans la 
 Ainsi, **deux paquets identiques** (même combinaison de valeurs sur les colonnes clés) **auront le même symbole**.  
 Ce mécanisme permet de convertir une séquence de paquets en une séquence symbolique exploitable par des modèles de prédiction ou de détection de motifs.
 
-### ⚙️ Détails de traitement
-- Les **variables numériques** (telles que :
-  `packet_length`, `payload_size`, `src_port`, `dst_port`)  
-  sont **discrétisées** afin de **réduire le nombre total de symboles** et de simplifier la représentation.  
-- La logique de discrétisation est conçue pour **préserver les comportements caractéristiques** tout en limitant la granularité inutile.  
-- Le module retourne un **DataFrame enrichi** contenant l’ensemble des colonnes d’origine + la colonne `symbole`.
+Les **symboles** produits appartiennent à \( \mathbb{N}^* \) (séquence de tokens/indices).  
+La **relation d'ordre** entre symboles n'est **pas** exploitée : les symboles servent uniquement d'identifiants discrets d'un n‑uplet d'attributs, pas d'une grandeur ordinale.
+
+Les symboles sont construits à partir des variables suivantes :
+- `timestamp` (temps du paquet)
+- `pck_length` (taille totale du paquet)
+- `port_src` (port source)
+- `port_dst` (port destination)
+- `transport` (protocole de transport, ex. TCP/UDP/ICMP)
+- `direction` (sens du paquet : ex. `master->slave` ou `slave->master`)
+
+
+La variable `timestamp` correspond à **l’écart de temps entre l’arrivée de deux paquets successifs au sein d’une même conversation**.  
+Pour chaque conversation (définie par `mac_src`, `mac_dst`, `transport`, `port_src`, `port_dst`), les paquets sont triés par timestamp, puis `timestamp` est calculé comme la différence de temps entre le paquet courant et le paquet précédent.  
+
+Cette approche permet de capturer la **dynamique temporelle locale** de chaque conversation, tout en restant indépendante des autres conversations ou maîtres.  
+
+#### Regroupement par conversation
+La construction est effectuée **par conversation** : une conversation est définie par la combinaison
+- `mac_src` + `mac_dst` (les deux adresses MAC)  
+- le protocole de transport (`transport`)  
+- `port_src` et `port_dst`  
+
+Autrement dit, tous les paquets partageant ces valeurs appartiennent à la même conversation.  
+Les opérations de discrétisation (par ex. calcul de la moyenne) sont **effectuées au niveau de chaque conversation**, afin de préserver les caractéristiques locales (débit, taille moyenne, etc.).
+
+#### Construction du symbole
+1. Pour chaque paquet, on extrait les variables listées ci‑dessus.  
+2. Les variables numériques pertinentes sont **discrétisées** selon les règles ci‑dessous (les bornes sont calculées localement par conversation lorsque mentionné).  
+3. Chaque vecteur discrétisé (p.ex. `[time_bin, length_bin, port_src_bin, port_dst_bin, transport_token, direction_token]`) est mappé vers un identifiant unique (symbole).  
+4. Deux paquets ayant le même n‑uplet discretisé recevront le **même symbole**.
+
+---
+
+### 🔢 Tableau : règles de discrétisation
+
+| Variable | Règle de discrétisation / Description |
+|----------|----------------------------------------|
+| `timestamp` | Discrétisation relative **par conversation** : `a` si `< moyenne_de_la_conversation`, `b` sinon. (La moyenne est calculée sur les `pck_length` de la conversation.) |
+| `pck_length` | Discrétisation relative **par conversation** : `a` si `< moyenne_de_la_conversation`, `b` sinon. (La moyenne est calculée sur les `pck_length` de la conversation.) |
+| `payload_size` | 3 classes : `a` si `= 0` (pas de charge utile), `b` si `> 0` **et** `< moyenne_de_la_conversation` (taille < moyenne), `c` sinon (>= moyenne). |
+| `port_src` | Classes de ports (standard) : `a` si `< 1023` (ports système), `b` si `>= 1023` et `< 25000` (ports enregistrés), `c` si `>= 25000` et `< 49151` (ports dynamiques/privés basse plage), `d` sinon (`>= 49151`). |
+| `port_dst` | **Même** règle que `port_src` (même discrétisation par catégories). |
+| `transport` | Catégoriel : mappage direct en token (`TCP` → `tcp`, `UDP` → `udp`, `ICMP` → `icmp`, etc.). |
+| `direction` | Catégoriel : tokeniser par sens (`master->slave`, `slave->master`, `unknown`). |
+| `protocol` (haut niveau) | Conservé/catégorisé (ex. `Modbus`, `SNMP`, `NTP`, `ARP`) ; peut être inclus dans le n‑uplet si nécessaire. |
+| `autres champs` | À discrétiser / catégoriser selon besoin (ex. flags TCP → petites catégories). |
+
+### ▶️ Paramètres demandés au démarrage (mode symbole)
+
+Au lancement du module de construction de symboles, le programme demande quelques paramètres essentiels :  
+- `safe_input` : chemin (avec extension) vers la base *safe* (jeu de données sans anomalies) à transformer ;  
+- `anomalie_input` : chemin (avec extension) vers la base *anomalies* associée à la base *safe* ;  
+- `pathout` : chemin de sortie **sans extension** qui servira de préfixe pour les fichiers générés.  
+
+### ▶️ Fichiers de sortie
+
+Le module produit deux fichiers en sortie basés sur le préfixe `pathout` fourni :  
+- `pathout_safe.txt` — version symbolisée de `safe_input`.  
+- `pathout_anomalies.txt` — version symbolisée de `anomalie_input`. 
+
+
+### 📝 TODO / Améliorations à venir (Module de construction de symboles)
+
+- Améliorer les **discrétisations** en utilisant des méthodes statistiques plus avancées (ex. quantiles, clustering, bins dynamiques) pour mieux représenter la distribution réelle des variables numériques.  
+- Proposer un **ensemble de choix de discrétisation** : classes plus ou moins grandes selon les besoins, permettant de faire évoluer le **nombre de symboles** générés et d’adapter la granularité de la représentation.
+
 
 ---
 ## 📄 Licence
