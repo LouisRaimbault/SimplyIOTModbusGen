@@ -240,8 +240,6 @@ Les opérations de discrétisation (par ex. calcul de la moyenne) sont **effectu
 | `port_dst` | **Même** règle que `port_src` (même discrétisation par catégories). |
 | `transport` | Catégoriel : mappage direct en token (`TCP` → `tcp`, `UDP` → `udp`, `ICMP` → `icmp`, etc.). |
 | `direction` | Catégoriel : tokeniser par sens (`master->slave`, `slave->master`, `unknown`). |
-| `protocol` (haut niveau) | Conservé/catégorisé (ex. `Modbus`, `SNMP`, `NTP`, `ARP`) ; peut être inclus dans le n‑uplet si nécessaire. |
-| `autres champs` | À discrétiser / catégoriser selon besoin (ex. flags TCP → petites catégories). |
 
 ### ▶️ Paramètres demandés au démarrage (mode symbole)
 
