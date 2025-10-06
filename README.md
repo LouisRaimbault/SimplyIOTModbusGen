@@ -45,7 +45,7 @@ L’inspiration provient d’une **architecture industrielle réduite** où les 
   L’algorithme peut produire :
   - des **bases de données “saines”** (sans anomalies)  
   - des **bases de données contenant des anomalies simulées**  
-  👉 Le détail des options de génération est précisé dans le **Makefile** du dossier correspondant.  
+  👉 Le détail des options de génération est précisé dans un tableau ci dessous 
 - **Adressage réseau :**  
   Les **adresses IP et MAC** sont générées aléatoirement.  
   Une future mise à jour permettra de **définir manuellement** ces adresses pour un meilleur contrôle de la simulation.
@@ -69,6 +69,10 @@ L’inspiration provient d’une **architecture industrielle réduite** où les 
 | `protocol` | Protocole réseau utilisé (`Modbus`, `ICMP`, `ARP`, `NTP`, `SNMP`) |
 | `label` | Label d’anomalie correspondant au comportement du paquet (voir tableau des anomalies) |
 
+#### Remarques
+- Les fichiers `anomalies` conservent l’identification des esclaves de la base `safe` afin de maintenir la continuité comportementale ; les anomalies sont appliquées selon des probabilités paramétrables (par type d’anomalie).  
+- Les fichiers sont des CSV classiques (`,`), encodés en **UTF‑8**, et portent l’extension `.txt` par convention de sortie.  
+- Les colonnes et le format exact (noms de colonnes, ordre) suivent la table **Variables générées** présente dans ce README.
 
 ---
 
@@ -89,8 +93,8 @@ Les anomalies sont classées en **deux familles** :
 | Label | Description | Type de machine |
 |-------|------------|----------------|
 | 0     | Pas d’anomalie |  connue |
-| 1     | Petit flood ICMP |  connue |
-| 2     | Petit port scan |  connue |
+| 1     | ICMP flood |  connue |
+| 2     | Port scan |  connue |
 | 3     | RST flood |  connue |
 | 4     | Pas de réponse à une requête Modbus |  connue |
 | 5     | Modbus esclaves → maître sans requête |  connue |
@@ -100,6 +104,15 @@ Les anomalies sont classées en **deux familles** :
 | 103   | RST flood |  inconnue |
 | 104   | Pas de réponse à une requête Modbus |  inconnue |
 | 105   | Modbus esclaves → maître sans requête |  inconnue |
+
+### 🎲 Gestion de l’aléatoire
+
+Le générateur utilise des valeurs aléatoires à plusieurs niveaux pour assurer la **diversité des scénarios**.  
+- Dans les bases *safe*, les timers, intervalles d’envoi et adresses (IP/MAC) sont générés aléatoirement afin que chaque exécution produise des séquences légèrement différentes même avec les mêmes paramètres.  
+- Dans les bases *anomalies*, l’aléatoire est également utilisé pour déterminer **l’apparition, le timing et la répartition des anomalies**, garantissant des scénarios variés à chaque génération.  
+
+Cette approche permet de créer des jeux de données réalistes et reproductibles en terme de format, tout en offrant **une diversité importante pour l’entraînement et le test des modèles**.
+
 
 ### ▶️ Mode Générateur — paramètres demandés
 
@@ -122,6 +135,45 @@ Lorsque le logiciel est lancé en **mode générateur**, il demande un ensemble 
 
 #### Exemple d'interprétation
 - Si `nb_msf = 1`, `nb_slaves = 5`, `nb_attackers = 2` → le maître unique aura 5 esclaves connus et 2 machines inconnues/attaquantes.  
+
+### 🧩 Logique de construction (basée sur des timers)
+
+La génération des séquences est **entièrement pilotée par des timers** : j’ai volontairement choisi cette approche plutôt que d’affecter des temps manuellement afin de reproduire un comportement temporel réaliste et modulable (accélération, superposition d’échanges, etc.).  
+
+Concrètement :  
+- Pour chaque **maître** défini dans le scénario, la génération se fait **esclave par esclave**.  
+- Pour un esclave donné, la génération produit **une série de flux distincts par protocole** (Modbus, ICMP, ARP, NTP, SNMP). Chaque flux possède son propre timer et ses propres intervalles d’envoi (déterminés aléatoirement selon la logique de référence ou forcés pour simuler une anomalie).  
+- Les timers déterminent les instants d’émission des requêtes/réponses : plutôt que d’attribuer des timestamps fixes, on incrémente un timer local au flux pour obtenir des événements temporellement plausibles.  
+- Une fois les flux protocolaires générés pour l’esclave, on **merge** ces séries en respectant l’ordre croissant des timestamps (les valeurs des timers) afin d’obtenir la chronologie réelle des paquets produits par cet esclave.  
+- Enfin, on **fusionne** les séries de tous les esclaves (et des machines inconnues/attaquantes) du maître en respectant les timers globaux, ce qui produit la séquence finale triée temporellement. Cette fusion préserve la superposition d’échanges et permet de simuler des collisions temporelles ou des congestions.  
+
+Points clés :
+- Les **anomalies** s’insèrent en modifiant soit les timers (ex. rafale de requêtes → timers rapprochés), soit le contenu des paquets (ex. absence de réponse), soit l’apparition de machines nouvelles.  
+- L’approche timer‑centrée rend la simulation simple à accélérer/décélérer (`ratio_duration`) et facilite la génération de scénarios avec documents temporels réalistes et reproductibles.  
+
+
+> **Remarque :** la même logique de merge s’applique à l’échelle du système entier lorsque plusieurs maîtres sont présents — chaque maître produit sa séquence temporelle (en fusionnant ses esclaves/attaquants) et les séquences des différents maîtres sont ensuite fusionnées entre elles en respectant les timers globaux pour obtenir la trace complète du scénario multi‑maître
+
+### 📤 Output — fichiers générés
+
+Le module **générateur** produit des jeux de données au format CSV (séparateur `,`) mais enregistrés avec l’extension `.txt` (encodage UTF-8). Chaque fichier contient les colonnes décrites dans la section *Variables générées* (ex. `id`, `time`, `mac_src`, `ip_src`, `pck_length`, `protocol`, `label`, …).
+
+Deux **familles** de bases sont générées pour chaque maître :
+
+- **`*_safe`** : bases *safe* — aucune anomalie (comportement normal des esclaves).  
+- **`*_anomalies`** : bases contenant des anomalies. Pour un maître donné, la base `anomalies` reprend la définition des esclaves de la base `safe` (conservation du même comportement normal) **et** y ajoute la génération d’événements anormaux selon des probabilités d’apparition configurables pour chaque type d’anomalie.
+
+#### Nommage et nombre de fichiers
+- L’utilisateur fournit un **préfixe de sortie** `X` (chemin sans extension).  
+- Pour chaque maître `i` (indexé à partir de `1`) sont produits **deux** fichiers :
+  - `X_safe_i.txt`
+  - `X_anomalies_i.txt`
+
+- En plus, le générateur produit **deux fichiers agrégés** (merge de tous les maîtres) :
+  - `X_network_safe.txt` (fusion de tous les `*_safe_i.txt`)
+  - `X_network_anomalies.txt` (fusion de tous les `*_anomalies_i.txt`)
+
+Le nombre total de fichiers produits est donc : (nombre de master +1) * 2 
 
 
 ## 🔹 2. Module de Construction de symboles
