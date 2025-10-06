@@ -1,0 +1,28 @@
+# =========================
+# Fichiers compilés / binaires
+# =========================
+build/
+*.o
+*.obj
+*.exe
+*.out
+*.a
+*.so
+*.dll
+
+# =========================
+# Fichiers temporaires IDE / OS
+# =========================
+*.swp
+*.swo
+*.DS_Store
+Thumbs.db
+*.log
+
+# =========================
+# Autres fichiers temporaires
+# =========================
+*.tmp
+*.bak
+*~
+
