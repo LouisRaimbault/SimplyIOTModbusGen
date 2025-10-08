@@ -31,9 +31,6 @@ int main(int argc, char** argv)
 		{
 			clean_stdin();
 			print_debog(1,"Main : Welcome to the data gestion prog ", "white");
-			//char* safe_input = "/home/Louis_RAIMBAULT/Bureau/Generateur_Donnees_Modbus/V2/Alex_network_safe.txt";
-			//char* anomalie_input = "/home/Louis_RAIMBAULT/Bureau/Generateur_Donnees_Modbus/V2/Alex_network_anomalies.txt";
-			//char* pathout = "/home/Louis_RAIMBAULT/Bureau/Generateur_Donnees_Modbus/V2/Wololo";
 			char* safe_input = NULL;
 			char* anomalie_input = NULL;
 			char* pathout = NULL;
