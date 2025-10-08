@@ -1,14 +1,22 @@
 #include "Generateur_Donnees.h"
-#include "Affiche_Debog.h"
+#include "Usefull_Fonctions.h"
 #include "Traffic_Creator.h"
 #include "Anomalies.h"
 #include "Get_And_Transforme_Data.h"
 
-int main (int argc, char** argv)
+
+
+
+int main(int argc, char** argv)
 {
 	srandom(time(NULL));
+	print_debog(0,"Welcome to the SimplyIOTModbusGen program : ", "white");
+	print_debog(0,"Please, set 1 to generate data, or 2 to generate symbols from data ...", "white");
+	uint16_t choice;
+	selection_valeur_manuelle(&choice, "uint16_t", "Utilisation du Software : ");
 	
-	if (strcmp(argv[1], "generator") == 0)
+	
+	if (choice == 1)
 		{
 			print_debog(1,"Main : Welcome to the data generator prog", "white");
 			struct Modbus_Network MN;
@@ -19,19 +27,20 @@ int main (int argc, char** argv)
 			std::cout << "End Prog \n";	
 		}
 
-	if (strcmp(argv[1], "data") == 0)
+	if (choice == 2)
 		{
-
+			clean_stdin();
 			print_debog(1,"Main : Welcome to the data gestion prog ", "white");
-			char* safe_input = "/home/Louis_RAIMBAULT/Bureau/Generateur_Donnees_Modbus/V2/pomme_network_safe.txt";
-			char* anomalie_input = "/home/Louis_RAIMBAULT/Bureau/Generateur_Donnees_Modbus/V2/pomme_network_anomalies.txt";
-			char* pathout = "/home/Louis_RAIMBAULT/Bureau/Generateur_Donnees_Modbus/V2/Wololo";
-			//char* safe_input;
-			//char* anomalie_input;
-			//char* pathout;
-			//selection_string_manuelle(&safe_input, "string", "safe data ");
-			//selection_string_manuelle(&safe_input, "string", "safe data ");
-			//selection_string_manuelle(&pathout, "string", "path out (with no extention, (txt will be attribued) ");
+			//char* safe_input = "/home/Louis_RAIMBAULT/Bureau/Generateur_Donnees_Modbus/V2/Alex_network_safe.txt";
+			//char* anomalie_input = "/home/Louis_RAIMBAULT/Bureau/Generateur_Donnees_Modbus/V2/Alex_network_anomalies.txt";
+			//char* pathout = "/home/Louis_RAIMBAULT/Bureau/Generateur_Donnees_Modbus/V2/Wololo";
+			char* safe_input = NULL;
+			char* anomalie_input = NULL;
+			char* pathout = NULL;
+			
+			selection_string_manuelle(&safe_input, "string", "safe data ");
+			selection_string_manuelle(&anomalie_input, "string", "anomalies data ");
+			selection_string_manuelle(&pathout, "string", "path out (with no extention, (txt will be attribued) ");
 			apply_transformation (safe_input, anomalie_input, pathout);
 		}
 

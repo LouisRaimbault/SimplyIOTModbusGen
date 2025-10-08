@@ -19,8 +19,8 @@ mkdir -p $BUILD_DIR
 # Compilation étape par étape
 echo "Compilation des .o ..."
 
-$CXX -c $SRC_DIR/Affiche_Debog.cpp -o $BUILD_DIR/Affiche_Debog.o $CXXFLAGS
-echo "Affiche_Debog.o done"
+$CXX -c $SRC_DIR/Usefull_Fonctions.cpp -o $BUILD_DIR/Usefull_Fonctions.o $CXXFLAGS
+echo "Usefull_Fonctions.o done"
 
 $CXX -c $SRC_DIR/Get_And_Transforme_Data.cpp -o $BUILD_DIR/Get_And_Transforme_Data.o $CXXFLAGS
 echo "Get_And_Transforme_Data.o done"
@@ -39,7 +39,7 @@ echo "main.o done"
 
 # Linking
 echo "Édition de liens ..."
-$CXX $BUILD_DIR/Affiche_Debog.o \
+$CXX $BUILD_DIR/Usefull_Fonctions.o \
      $BUILD_DIR/Get_And_Transforme_Data.o \
      $BUILD_DIR/Traffic_Creator.o \
      $BUILD_DIR/Anomalies.o \

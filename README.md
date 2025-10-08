@@ -19,6 +19,13 @@ Ce générateur facilite le **prototypage rapide d’algorithmes** sans dépendr
 
 ---
 
+## Creating binaries and getting started
+```
+chmod +x easymake.sh
+./easymake.sh
+./build/simg
+```
+
 ## ⚙️ Structure du projet
 
 Le projet est divisé en **deux modules principaux** :

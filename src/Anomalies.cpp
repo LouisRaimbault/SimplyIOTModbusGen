@@ -1,7 +1,7 @@
 #include "Anomalies.h"
 #include "Generateur_Donnees.h"
 #include "Traffic_Creator.h"
-#include "Affiche_Debog.h"
+#include "Usefull_Fonctions.h"
 
 // Label 0 sans anomalies 
 // Label 1 icmp flood
@@ -239,11 +239,9 @@ void rqt_no_asw (struct Packet* tab_pck_anomalies, double curtime, uint32_t* com
 
 struct Packet* get_anomalies_array (struct Slave* S, struct Master_Slaves_Flow* MSF)
 {
-	print_debog(15, "#get_anomalies_array ", "rouge");
-	print_debog(15, "get_anomalies_array 1 ", "rouge");
+
 	
 	double delay_usleep = 1.00 * MSF->ratio_duration * 1000000.00;
-	std::cout << "delay usleep = " << delay_usleep << "\n";
 	uint32_t compteur = 0;
 	uint32_t max_packet = 10000000;
 	struct Packet* tab_pck_anomalies = (struct Packet*)malloc(max_packet * sizeof(struct Packet));
@@ -253,7 +251,7 @@ struct Packet* get_anomalies_array (struct Slave* S, struct Master_Slaves_Flow* 
 	double ecart_oldnow;
 	clock_gettime(CLOCK_MONOTONIC, &start);
 	old = start;
-	print_debog(15, "#get_anomalies_array 2 ", "rouge");
+
 	uint32_t num_alea = 0;
 
 	while (ecart_timerstart < MSF->duration_scenario)
@@ -271,21 +269,21 @@ struct Packet* get_anomalies_array (struct Slave* S, struct Master_Slaves_Flow* 
 
 			if (alea > 4)
 				{
-					std::cout << "##### ALEA = " << alea << " ICMP --------------------------------\n";
+					
 					icmp_flood(tab_pck_anomalies, ecart_timerstart, &compteur, S, MSF);
 					usleep(delay_usleep);
 					continue;
 				}
 			if (alea > 3)
 				{	
-					std::cout << "##### ALEA = " << alea << " PORT SCAN --------------------------------\n";
+					
 					port_scan(tab_pck_anomalies, ecart_timerstart, &compteur, S, MSF);
 					usleep(delay_usleep);
 					continue;
 				}
 			if (alea > 2)
 				{
-					std::cout << "##### ALEA = " << alea << " RST FLOOD --------------------------------\n";
+					
 					rstflood(tab_pck_anomalies, ecart_timerstart, &compteur, S, MSF);
 					usleep(delay_usleep);
 					continue;
@@ -294,7 +292,7 @@ struct Packet* get_anomalies_array (struct Slave* S, struct Master_Slaves_Flow* 
 			if (alea > 1)
 				{
 					// envoies de esclaves sans requête master 
-					std::cout << "##### ALEA = " << alea << " ANS NO RQT --------------------------------\n";
+					
 					asw_no_rqt(tab_pck_anomalies, ecart_timerstart, &compteur, S, MSF);
 					usleep(delay_usleep);
 					continue;
@@ -303,7 +301,7 @@ struct Packet* get_anomalies_array (struct Slave* S, struct Master_Slaves_Flow* 
 			if (alea > 0)
 				{
 					// pas de réponses aux requête
-					std::cout << "##### ALEA = " << alea << " RQT NO ASW --------------------------------\n";
+					
 					rqt_no_asw(tab_pck_anomalies, ecart_timerstart, &compteur, S, MSF);
 					usleep(delay_usleep);
 					continue;
@@ -313,8 +311,7 @@ struct Packet* get_anomalies_array (struct Slave* S, struct Master_Slaves_Flow* 
 
 		}
 
-	print_debog(15, "#get_anomalies_array 3 ", "rouge");
-	print_debog_nb(15, "#get_anomalies_array compteur =  ", compteur, "vert");	
+
 	struct Packet* tab_pck = (struct Packet*)malloc((compteur+1)*sizeof(struct Packet));	
 	tab_pck[compteur].timer = -1.0; // Pour eviter d'avoir à return le nb de pck 
 	for (int i = 0; i < compteur; i++)
@@ -322,9 +319,7 @@ struct Packet* get_anomalies_array (struct Slave* S, struct Master_Slaves_Flow* 
 			tab_pck[i] = tab_pck_anomalies[i]; 
 		}
 	free(tab_pck_anomalies);
-	print_debog(15, "#get_anomalies_array 4 ", "rouge");
-	print_debog(15, "#get_anomalies_array OUT /////////// ", "rouge");
-	std::cout << "COMPTEUR =  " << compteur << "\n";
+
 	return tab_pck;
 
 };
